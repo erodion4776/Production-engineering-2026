@@ -11,7 +11,7 @@ interface Props {
 const Quiz: React.FC<Props> = ({ questions, onComplete }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [answers, setAnswers] = useState<Record<number, number>>({});
-  const [timeLeft, setTimeLeft] = useState(15 * 60); // 15 minutes
+  const [timeLeft, setTimeLeft] = useState(3 * 60); // 3 minutes strictly (180 seconds)
   const itemsPerPage = 5;
   const totalPages = Math.ceil(questions.length / itemsPerPage);
 
@@ -28,7 +28,11 @@ const Quiz: React.FC<Props> = ({ questions, onComplete }) => {
   }, [calculateScore, answers, onComplete]);
 
   useEffect(() => {
-    if (timeLeft <= 0) { handleSubmit(); return; }
+    if (timeLeft <= 0) { 
+      alert("Time's Up! Assessment Auto-Submitted.");
+      handleSubmit(); 
+      return; 
+    }
     const timer = setInterval(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearInterval(timer);
   }, [timeLeft, handleSubmit]);
@@ -44,9 +48,9 @@ const Quiz: React.FC<Props> = ({ questions, onComplete }) => {
     <div className="flex flex-col h-full bg-slate-50">
       {/* Sticky Header with Progress and Timer */}
       <div className="sticky top-0 bg-white shadow-sm z-30 p-4 border-b border-slate-200 flex justify-between items-center">
-        <div className={`px-4 py-2 rounded-lg font-mono font-bold text-lg border-2 ${timeLeft < 120 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+        <div className={`px-4 py-2 rounded-lg font-mono font-bold text-sm sm:text-lg border-2 ${timeLeft < 30 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
           <Clock className="inline mr-2" size={20} />
-          {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+          Time Remaining: {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
         </div>
         <div className="flex flex-col items-end">
            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progress</span>
