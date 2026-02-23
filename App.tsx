@@ -54,7 +54,16 @@ const App: React.FC = () => {
     const whitelisted = currentStudent ? isStudentWhitelisted(currentStudent.name, currentStudent.matNo) : false;
     setIsWhitelisted(whitelisted);
 
-    if (isCompleted && !retakePaid && !whitelisted) {
+    if (whitelisted) {
+      // Forced override: ignore completion flag for whitelisted students
+      const storedModuleId = localStorage.getItem('uniben_assigned_module');
+      const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
+      setAssignedModuleId(moduleId);
+      localStorage.setItem('uniben_assigned_module', moduleId.toString());
+      setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
+      
+      setStage(AppStage.QUIZ);
+    } else if (isCompleted && !retakePaid) {
       setStage(AppStage.BLOCKED);
     } else if (isCompleted && retakePaid) {
       setIsRetakeMode(true);
@@ -85,15 +94,18 @@ const App: React.FC = () => {
     const isCompleted = localStorage.getItem('uniben_cbt_completed') === 'true';
     const retakePaid = localStorage.getItem('uniben_cbt_retake_paid') === 'true';
 
-    if (isCompleted && !retakePaid && !whitelisted) {
-      setStage(AppStage.BLOCKED);
-    } else if (isCompleted && whitelisted) {
+    if (whitelisted) {
+      // Forced override for whitelisted students: skip directly to quiz
       const storedModuleId = localStorage.getItem('uniben_assigned_module');
       const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
       setAssignedModuleId(moduleId);
       localStorage.setItem('uniben_assigned_module', moduleId.toString());
       setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
+      
+      alert("Authorized Redo: You have 6 minutes.");
       setStage(AppStage.QUIZ);
+    } else if (isCompleted && !retakePaid) {
+      setStage(AppStage.BLOCKED);
     } else {
       setStage(AppStage.EXPERIMENT);
     }
@@ -227,6 +239,7 @@ const App: React.FC = () => {
             <BlockedAccess 
               previousScore={parseInt(localStorage.getItem('uniben_cbt_score') || '0', 10)} 
               onRetake={handleRetakePayment} 
+              onReverify={() => setStage(AppStage.REGISTRATION)}
             />
           )}
           

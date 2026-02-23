@@ -5,9 +5,10 @@ import { ShieldAlert, LogOut, RefreshCcw, CreditCard, Award } from 'lucide-react
 interface Props {
   previousScore: number;
   onRetake: () => void;
+  onReverify: () => void;
 }
 
-const BlockedAccess: React.FC<Props> = ({ previousScore, onRetake }) => {
+const BlockedAccess: React.FC<Props> = ({ previousScore, onRetake, onReverify }) => {
   return (
     <div className="p-8 text-center h-full flex flex-col items-center justify-center bg-white rounded-2xl">
       <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 mb-6 shadow-sm">
@@ -35,6 +36,13 @@ const BlockedAccess: React.FC<Props> = ({ previousScore, onRetake }) => {
           <div className="text-[10px] opacity-80 font-bold uppercase tracking-widest flex items-center gap-1 mt-1">
              <CreditCard size={10} /> Premium Access (₦500)
           </div>
+        </button>
+
+        <button 
+          onClick={onReverify}
+          className="w-full py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all flex items-center justify-center gap-2 active:scale-95"
+        >
+          <ShieldCheck size={18} className="text-indigo-600" /> Check for Special Access
         </button>
 
         <button 

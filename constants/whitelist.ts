@@ -1,5 +1,5 @@
 
-export const WHITELIST_START_TIME = "2026-02-22T16:33:06-08:00"; // Hardcoded Start Time
+export const WHITELIST_START_TIME = "2026-02-22T16:47:59-08:00"; // Hardcoded Start Time
 
 export const WHITELIST = [
   { name: "Albert Joy", matNo: "ENG2204325" },
@@ -26,7 +26,7 @@ export const WHITELIST = [
   { name: "Osamede Thelma Amadasun", matNo: "ENG2204328" },
   { name: "OLAWALE AMINOLA RILLWAN", matNo: "ENG2204357" },
   { name: "Akingbaso Feyisayo", matNo: "ENG2204324" },
-  { name: "Ero Osarodion", matNo: "ENG1427066" }
+  { name: "Ero Odion", matNo: "ENG1427666" }
 ];
 
 export const isStudentWhitelisted = (name: string, matNo: string): boolean => {

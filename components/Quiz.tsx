@@ -51,19 +51,25 @@ const Quiz: React.FC<Props> = ({ questions, isRetake = false, isWhitelisted = fa
   return (
     <div className="flex flex-col h-full bg-slate-50">
       {/* Sticky Header with Progress and Timer */}
-      <div className="sticky top-0 bg-white shadow-sm z-30 p-4 border-b border-slate-200 flex justify-between items-center">
-        <div className={`px-4 py-2 rounded-lg font-mono font-bold text-sm sm:text-lg border-2 flex items-center gap-2 ${timeLeft < 30 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
-          <Clock size={20} />
-          {isRetake ? 'Retake Mode - ' : ''}
-          {isWhitelisted ? 'Special Access - ' : ''}
-          Time Remaining: {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
-        </div>
-        <div className="flex flex-col items-end">
-           {isWhitelisted && (
-             <div className="flex items-center gap-1 text-[8px] font-black text-green-600 uppercase tracking-tighter mb-1">
-               <ShieldCheck size={10} /> Special Access Granted: 6-Minute Timer Active
-             </div>
-           )}
+      <div className="sticky top-0 bg-white shadow-sm z-30 border-b border-slate-200">
+        {isWhitelisted && (
+          <div className="bg-green-600 text-white text-[10px] font-black uppercase tracking-[0.2em] py-1.5 text-center flex items-center justify-center gap-2">
+            <ShieldCheck size={12} /> Authorized Redo Active: 6 Minutes Allocated
+          </div>
+        )}
+        <div className="p-4 flex justify-between items-center">
+          <div className={`px-4 py-2 rounded-lg font-mono font-bold text-sm sm:text-lg border-2 flex items-center gap-2 ${timeLeft < 30 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+            <Clock size={20} />
+            {isRetake ? 'Retake Mode - ' : ''}
+            {isWhitelisted ? 'Special Access - ' : ''}
+            Time Remaining: {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+          </div>
+          <div className="flex flex-col items-end">
+             {isWhitelisted && (
+               <div className="flex items-center gap-1 text-[8px] font-black text-green-600 uppercase tracking-tighter mb-1">
+                 <ShieldCheck size={10} /> Special Access Granted
+               </div>
+             )}
            {isRetake && !isWhitelisted && (
              <div className="flex items-center gap-1 text-[8px] font-black text-indigo-600 uppercase tracking-tighter mb-1">
                <ShieldCheck size={10} /> Premium Access Enabled
@@ -73,6 +79,7 @@ const Quiz: React.FC<Props> = ({ questions, isRetake = false, isWhitelisted = fa
            <span className="text-sm font-bold text-indigo-600">{answeredCount} / {questions.length} Answered</span>
         </div>
       </div>
+    </div>
 
       {/* Questions Scroll Area */}
       <div className="flex-grow p-4 sm:p-6 space-y-6 overflow-y-auto pb-32">
