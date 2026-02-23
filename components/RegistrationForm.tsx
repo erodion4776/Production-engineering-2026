@@ -1,13 +1,15 @@
 
 import React, { useState, useMemo } from 'react';
 import { StudentData } from '../types';
-import { User, Hash, Briefcase, BookOpen, AlertCircle } from 'lucide-react';
+import { User, Hash, Briefcase, BookOpen, AlertCircle, ShieldCheck } from 'lucide-react';
+import { isStudentWhitelisted } from '../constants/whitelist';
 
 interface Props {
   onComplete: (data: StudentData) => void;
+  isCompleted?: boolean;
 }
 
-const RegistrationForm: React.FC<Props> = ({ onComplete }) => {
+const RegistrationForm: React.FC<Props> = ({ onComplete, isCompleted = false }) => {
   const [formData, setFormData] = useState<StudentData>({
     name: '',
     matNo: '',
@@ -33,6 +35,10 @@ const RegistrationForm: React.FC<Props> = ({ onComplete }) => {
   }, [formData]);
 
   const isValid = Object.values(validations).every(v => v);
+
+  const isWhitelisted = useMemo(() => {
+    return isStudentWhitelisted(formData.name, formData.matNo);
+  }, [formData.name, formData.matNo]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,17 +150,31 @@ const RegistrationForm: React.FC<Props> = ({ onComplete }) => {
           </div>
         </div>
 
-        <button
-          type="submit"
-          disabled={!isValid}
-          className={`w-full py-4 rounded-xl font-black text-white transition-all transform active:scale-95 shadow-lg flex items-center justify-center gap-2 ${
-            isValid 
-            ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' 
-            : 'bg-slate-300 cursor-not-allowed grayscale'
-          }`}
-        >
-          START EXPERIMENT
-        </button>
+        {isCompleted && isWhitelisted ? (
+          <button
+            type="submit"
+            className="w-full py-4 rounded-xl font-black text-white transition-all transform active:scale-95 shadow-lg flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 shadow-green-200"
+          >
+            <div className="flex items-center gap-2 text-lg">
+              <ShieldCheck size={22} /> AUTHORIZED REWRITE AVAILABLE
+            </div>
+            <div className="text-[10px] opacity-80 font-bold uppercase tracking-widest">
+              Special Access Granted (6-Minute Timer)
+            </div>
+          </button>
+        ) : (
+          <button
+            type="submit"
+            disabled={!isValid}
+            className={`w-full py-4 rounded-xl font-black text-white transition-all transform active:scale-95 shadow-lg flex items-center justify-center gap-2 ${
+              isValid 
+              ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200' 
+              : 'bg-slate-300 cursor-not-allowed grayscale'
+            }`}
+          >
+            START EXPERIMENT
+          </button>
+        )}
 
         <p className="text-[10px] text-center text-slate-400 font-bold uppercase tracking-widest mt-4">
           Verification Required for Result Recording

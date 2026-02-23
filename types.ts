@@ -23,6 +23,9 @@ export interface QuizAttempt {
   answers: Record<number, number>;
   score: number;
   questions: Question[];
+  timeUsedSeconds?: number;
+  isRetake?: boolean;
+  isOfficialRewrite?: boolean;
 }
 
 export enum AppStage {

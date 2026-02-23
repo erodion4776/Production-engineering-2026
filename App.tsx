@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { AppStage, StudentData, TrialResult, Question, QuizAttempt } from './types.ts';
 import { getAssessmentQuestions } from './constants/questions.ts';
+import { isStudentWhitelisted } from './constants/whitelist.ts';
 import RegistrationForm from './components/RegistrationForm.tsx';
 import ModuleDashboard from './components/ModuleDashboard.tsx';
 import SlideDeck from './components/SlideDeck.tsx';
@@ -35,12 +36,36 @@ const App: React.FC = () => {
   const [quizAttempt, setQuizAttempt] = useState<QuizAttempt | null>(null);
   const [assessmentQuestions, setAssessmentQuestions] = useState<Question[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isRetakeMode, setIsRetakeMode] = useState(false);
+  const [isWhitelisted, setIsWhitelisted] = useState(false);
 
-  // Security Check: One-Time Access
+  // Security & Retake Persistence
   useEffect(() => {
-    const isCompleted = localStorage.getItem('uniben_cbt_completed');
-    if (isCompleted === 'true') {
+    const isCompleted = localStorage.getItem('uniben_cbt_completed') === 'true';
+    const retakePaid = localStorage.getItem('uniben_cbt_retake_paid') === 'true';
+    const storedStudent = localStorage.getItem('uniben_student_data');
+    
+    let currentStudent: StudentData | null = null;
+    if (storedStudent) {
+      currentStudent = JSON.parse(storedStudent);
+      setStudent(currentStudent);
+    }
+
+    const whitelisted = currentStudent ? isStudentWhitelisted(currentStudent.name, currentStudent.matNo) : false;
+    setIsWhitelisted(whitelisted);
+
+    if (isCompleted && !retakePaid && !whitelisted) {
       setStage(AppStage.BLOCKED);
+    } else if (isCompleted && retakePaid) {
+      setIsRetakeMode(true);
+      // Automatically route to Quiz if we are in persistent retake mode
+      const storedModuleId = localStorage.getItem('uniben_assigned_module');
+      if (storedModuleId) {
+        const moduleId = parseInt(storedModuleId, 10);
+        setAssignedModuleId(moduleId);
+        setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
+        setStage(AppStage.QUIZ);
+      }
     }
   }, []);
 
@@ -52,19 +77,37 @@ const App: React.FC = () => {
 
   const handleRegistration = (data: StudentData) => {
     setStudent(data);
-    setStage(AppStage.EXPERIMENT);
+    localStorage.setItem('uniben_student_data', JSON.stringify(data));
+    
+    const whitelisted = isStudentWhitelisted(data.name, data.matNo);
+    setIsWhitelisted(whitelisted);
+    
+    const isCompleted = localStorage.getItem('uniben_cbt_completed') === 'true';
+    const retakePaid = localStorage.getItem('uniben_cbt_retake_paid') === 'true';
+
+    if (isCompleted && !retakePaid && !whitelisted) {
+      setStage(AppStage.BLOCKED);
+    } else if (isCompleted && whitelisted) {
+      const storedModuleId = localStorage.getItem('uniben_assigned_module');
+      const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
+      setAssignedModuleId(moduleId);
+      localStorage.setItem('uniben_assigned_module', moduleId.toString());
+      setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
+      setStage(AppStage.QUIZ);
+    } else {
+      setStage(AppStage.EXPERIMENT);
+    }
   };
 
   const handleExperimentComplete = (results: TrialResult[]) => {
     setTrials(results);
     setIsProcessing(true);
     
-    // Module Roulette: Random selection between 1-10
     setTimeout(() => {
       const randomModule = Math.floor(Math.random() * 10) + 1;
       setAssignedModuleId(randomModule);
+      localStorage.setItem('uniben_assigned_module', randomModule.toString());
       
-      // Fetch 50 questions specifically for the assigned module
       const questions = getAssessmentQuestions(50, randomModule);
       setAssessmentQuestions(questions);
       
@@ -81,21 +124,77 @@ const App: React.FC = () => {
     setStage(AppStage.QUIZ);
   };
 
-  const handleQuizFinish = (score: number, answers: Record<number, number>) => {
+  const handleQuizFinish = (score: number, answers: Record<number, number>, timeUsedSeconds: number) => {
     localStorage.setItem('uniben_cbt_completed', 'true');
-    setQuizAttempt({ score, answers, questions: assessmentQuestions });
+    localStorage.setItem('uniben_cbt_score', score.toString());
+    
+    const attempt: QuizAttempt = { 
+      score, 
+      answers, 
+      questions: assessmentQuestions, 
+      timeUsedSeconds, 
+      isRetake: isRetakeMode,
+      isOfficialRewrite: isWhitelisted
+    };
+    
+    setQuizAttempt(attempt);
     setStage(AppStage.SUBMISSION_LOCKED);
   };
 
-  const handleWhatsAppSubmission = useCallback((finalScore: number) => {
+  const handleWhatsAppSubmission = useCallback((attempt: QuizAttempt) => {
     if (!student || assignedModuleId === null) return;
     const avgTime = calculateAverageTime();
     const moduleName = MODULES_LIST[assignedModuleId - 1];
-    const message = `Hello Engr. Ero, Student: ${student.name}, Mat No: ${student.matNo}, Serial No: ${student.serialNo}, Dept: ${student.department}. --- Assigned Module: ${moduleName}. Experiment Avg Time: ${avgTime}s. CBT Score: ${finalScore}/50.`;
+    
+    const timeUsedMin = attempt.timeUsedSeconds ? (attempt.timeUsedSeconds / 60).toFixed(1) : "0";
+    const retakeLabel = attempt.isRetake ? " (RETAKE ATTEMPT)" : "";
+    const rewriteLabel = attempt.isOfficialRewrite ? " (OFFICIAL REWRITE ATTEMPT)" : "";
+    
+    const message = `Hello Engr. Ero, Student: ${student.name}${retakeLabel}${rewriteLabel}, Mat No: ${student.matNo}, Serial No: ${student.serialNo}, Dept: ${student.department}. --- Assigned Module: ${moduleName}. Experiment Avg Time: ${avgTime}s. Quiz Score: ${attempt.score}/50, Time Used: ${timeUsedMin} min.`;
     
     const whatsappUrl = `https://wa.me/2347062228026?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   }, [student, assignedModuleId, calculateAverageTime]);
+
+  const handleRetakePayment = () => {
+    if (!student) return;
+    
+    // @ts-ignore
+    window.MonnifySDK.initialize({
+      amount: 500,
+      currency: "NGN",
+      reference: student.matNo + '_' + Math.floor((Math.random() * 10000000) + 1),
+      customerFullName: student.name,
+      customerEmail: student.matNo.toLowerCase() + "@uniben.edu",
+      apiKey: "MK_TEST_ZL89TGPE8Q",
+      contractCode: "3894966249",
+      paymentDescription: "CBT Retake Fee for " + student.matNo,
+      metadata: {
+        "student_name": student.name,
+        "matric_no": student.matNo
+      },
+      onComplete: function(response: any) {
+        if (response.status === 'SUCCESS' || response.status === 'PAID') {
+          localStorage.setItem('uniben_cbt_retake_paid', 'true');
+          setIsRetakeMode(true);
+          
+          // Re-initialize questions for the previously assigned module if it exists, otherwise generate new
+          const storedModuleId = localStorage.getItem('uniben_assigned_module');
+          const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
+          setAssignedModuleId(moduleId);
+          localStorage.setItem('uniben_assigned_module', moduleId.toString());
+          setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
+          
+          setStage(AppStage.QUIZ);
+        } else {
+          alert("Payment failed or cancelled. Please try again.");
+        }
+      },
+      onClose: function(data: any) {
+        console.log("Payment window closed");
+      }
+    });
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50">
@@ -124,10 +223,18 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {stage === AppStage.BLOCKED && <BlockedAccess />}
+          {stage === AppStage.BLOCKED && (
+            <BlockedAccess 
+              previousScore={parseInt(localStorage.getItem('uniben_cbt_score') || '0', 10)} 
+              onRetake={handleRetakePayment} 
+            />
+          )}
           
           {stage === AppStage.REGISTRATION && (
-            <RegistrationForm onComplete={handleRegistration} />
+            <RegistrationForm 
+              onComplete={handleRegistration} 
+              isCompleted={localStorage.getItem('uniben_cbt_completed') === 'true'}
+            />
           )}
 
           {stage === AppStage.EXPERIMENT && (
@@ -156,6 +263,8 @@ const App: React.FC = () => {
           {stage === AppStage.QUIZ && assessmentQuestions.length > 0 && (
             <Quiz 
               questions={assessmentQuestions} 
+              isRetake={isRetakeMode}
+              isWhitelisted={isWhitelisted}
               onComplete={handleQuizFinish} 
             />
           )}
@@ -163,7 +272,7 @@ const App: React.FC = () => {
           {stage === AppStage.SUBMISSION_LOCKED && quizAttempt && (
             <SubmissionLocked 
               score={quizAttempt.score}
-              onWhatsAppSubmit={() => handleWhatsAppSubmission(quizAttempt.score)}
+              onWhatsAppSubmit={() => handleWhatsAppSubmission(quizAttempt)}
               onViewReview={() => setStage(AppStage.REVIEW)}
             />
           )}
@@ -180,8 +289,12 @@ const App: React.FC = () => {
               student={student}
               avgTime={calculateAverageTime().toString()}
               score={quizAttempt.score}
-              onWhatsAppSubmit={() => handleWhatsAppSubmission(quizAttempt.score)}
-              onRestart={() => window.location.reload()}
+              onWhatsAppSubmit={() => handleWhatsAppSubmission(quizAttempt)}
+              onRestart={() => {
+                localStorage.removeItem('uniben_cbt_completed');
+                localStorage.removeItem('uniben_cbt_retake_paid');
+                window.location.reload();
+              }}
             />
           )}
         </div>
