@@ -41,8 +41,6 @@ const App: React.FC = () => {
 
   // Security & Retake Persistence
   useEffect(() => {
-    const isCompleted = localStorage.getItem('uniben_cbt_completed') === 'true';
-    const retakePaid = localStorage.getItem('uniben_cbt_retake_paid') === 'true';
     const storedStudent = localStorage.getItem('uniben_student_data');
     
     let currentStudent: StudentData | null = null;
@@ -51,31 +49,34 @@ const App: React.FC = () => {
       setStudent(currentStudent);
     }
 
-    const whitelisted = currentStudent ? isStudentWhitelisted(currentStudent.name, currentStudent.matNo) : false;
-    setIsWhitelisted(whitelisted);
-
-    const rewriteCompleted = localStorage.getItem('uniben_cbt_rewrite_completed') === 'true';
-
-    if (whitelisted && !rewriteCompleted) {
-      // Forced override: ignore completion flag for whitelisted students who haven't rewritten yet
-      const storedModuleId = localStorage.getItem('uniben_assigned_module');
-      const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
-      setAssignedModuleId(moduleId);
-      localStorage.setItem('uniben_assigned_module', moduleId.toString());
-      setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
+    if (currentStudent) {
+      const matNo = currentStudent.matNo;
+      const isCompleted = localStorage.getItem(`uniben_completed_${matNo}`) === 'true';
+      const retakePaid = localStorage.getItem(`uniben_retake_paid_${matNo}`) === 'true';
+      const rewriteCompleted = localStorage.getItem(`uniben_rewrite_completed_${matNo}`) === 'true';
+      const whitelisted = isStudentWhitelisted(currentStudent.name, matNo);
       
-      setStage(AppStage.QUIZ);
-    } else if (isCompleted && !retakePaid) {
-      setStage(AppStage.BLOCKED);
-    } else if (isCompleted && retakePaid) {
-      setIsRetakeMode(true);
-      // Automatically route to Quiz if we are in persistent retake mode
-      const storedModuleId = localStorage.getItem('uniben_assigned_module');
-      if (storedModuleId) {
-        const moduleId = parseInt(storedModuleId, 10);
+      setIsWhitelisted(whitelisted);
+
+      if (whitelisted && !rewriteCompleted) {
+        // Forced override: ignore completion flag for whitelisted students who haven't rewritten yet
+        const storedModuleId = localStorage.getItem(`uniben_assigned_module_${matNo}`);
+        const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
         setAssignedModuleId(moduleId);
+        localStorage.setItem(`uniben_assigned_module_${matNo}`, moduleId.toString());
         setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
         setStage(AppStage.QUIZ);
+      } else if (isCompleted && !retakePaid) {
+        setStage(AppStage.BLOCKED);
+      } else if (isCompleted && retakePaid) {
+        setIsRetakeMode(true);
+        const storedModuleId = localStorage.getItem(`uniben_assigned_module_${matNo}`);
+        if (storedModuleId) {
+          const moduleId = parseInt(storedModuleId, 10);
+          setAssignedModuleId(moduleId);
+          setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
+          setStage(AppStage.QUIZ);
+        }
       }
     }
   }, []);
@@ -90,19 +91,20 @@ const App: React.FC = () => {
     setStudent(data);
     localStorage.setItem('uniben_student_data', JSON.stringify(data));
     
-    const whitelisted = isStudentWhitelisted(data.name, data.matNo);
+    const matNo = data.matNo;
+    const whitelisted = isStudentWhitelisted(data.name, matNo);
     setIsWhitelisted(whitelisted);
     
-    const isCompleted = localStorage.getItem('uniben_cbt_completed') === 'true';
-    const retakePaid = localStorage.getItem('uniben_cbt_retake_paid') === 'true';
-    const rewriteCompleted = localStorage.getItem('uniben_cbt_rewrite_completed') === 'true';
+    const isCompleted = localStorage.getItem(`uniben_completed_${matNo}`) === 'true';
+    const retakePaid = localStorage.getItem(`uniben_retake_paid_${matNo}`) === 'true';
+    const rewriteCompleted = localStorage.getItem(`uniben_rewrite_completed_${matNo}`) === 'true';
 
     if (whitelisted && !rewriteCompleted) {
       // Forced override for whitelisted students: skip directly to quiz
-      const storedModuleId = localStorage.getItem('uniben_assigned_module');
+      const storedModuleId = localStorage.getItem(`uniben_assigned_module_${matNo}`);
       const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
       setAssignedModuleId(moduleId);
-      localStorage.setItem('uniben_assigned_module', moduleId.toString());
+      localStorage.setItem(`uniben_assigned_module_${matNo}`, moduleId.toString());
       setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
       
       alert("Authorized Redo: You have 6 minutes.");
@@ -121,7 +123,9 @@ const App: React.FC = () => {
     setTimeout(() => {
       const randomModule = Math.floor(Math.random() * 10) + 1;
       setAssignedModuleId(randomModule);
-      localStorage.setItem('uniben_assigned_module', randomModule.toString());
+      if (student) {
+        localStorage.setItem(`uniben_assigned_module_${student.matNo}`, randomModule.toString());
+      }
       
       const questions = getAssessmentQuestions(50, randomModule);
       setAssessmentQuestions(questions);
@@ -140,11 +144,13 @@ const App: React.FC = () => {
   };
 
   const handleQuizFinish = (score: number, answers: Record<number, number>, timeUsedSeconds: number) => {
-    localStorage.setItem('uniben_cbt_completed', 'true');
-    localStorage.setItem('uniben_cbt_score', score.toString());
-    
-    if (isWhitelisted) {
-      localStorage.setItem('uniben_cbt_rewrite_completed', 'true');
+    if (student) {
+      localStorage.setItem(`uniben_completed_${student.matNo}`, 'true');
+      localStorage.setItem(`uniben_score_${student.matNo}`, score.toString());
+      
+      if (isWhitelisted) {
+        localStorage.setItem(`uniben_rewrite_completed_${student.matNo}`, 'true');
+      }
     }
     
     const attempt: QuizAttempt = { 
@@ -194,14 +200,14 @@ const App: React.FC = () => {
       },
       onComplete: function(response: any) {
         if (response.status === 'SUCCESS' || response.status === 'PAID') {
-          localStorage.setItem('uniben_cbt_retake_paid', 'true');
+          localStorage.setItem(`uniben_retake_paid_${student.matNo}`, 'true');
           setIsRetakeMode(true);
           
           // Re-initialize questions for the previously assigned module if it exists, otherwise generate new
-          const storedModuleId = localStorage.getItem('uniben_assigned_module');
+          const storedModuleId = localStorage.getItem(`uniben_assigned_module_${student.matNo}`);
           const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
           setAssignedModuleId(moduleId);
-          localStorage.setItem('uniben_assigned_module', moduleId.toString());
+          localStorage.setItem(`uniben_assigned_module_${student.matNo}`, moduleId.toString());
           setAssessmentQuestions(getAssessmentQuestions(50, moduleId));
           
           setStage(AppStage.QUIZ);
@@ -242,20 +248,22 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {stage === AppStage.BLOCKED && (
+          {stage === AppStage.BLOCKED && student && (
             <BlockedAccess 
-              previousScore={parseInt(localStorage.getItem('uniben_cbt_score') || '0', 10)} 
+              previousScore={parseInt(localStorage.getItem(`uniben_score_${student.matNo}`) || '0', 10)} 
               onRetake={handleRetakePayment} 
-              onReverify={() => setStage(AppStage.REGISTRATION)}
-              isRewriteCompleted={localStorage.getItem('uniben_cbt_rewrite_completed') === 'true'}
+              onReverify={() => {
+                localStorage.removeItem('uniben_student_data');
+                setStudent(null);
+                setStage(AppStage.REGISTRATION);
+              }}
+              isRewriteCompleted={localStorage.getItem(`uniben_rewrite_completed_${student.matNo}`) === 'true'}
             />
           )}
           
           {stage === AppStage.REGISTRATION && (
             <RegistrationForm 
               onComplete={handleRegistration} 
-              isCompleted={localStorage.getItem('uniben_cbt_completed') === 'true'}
-              isRewriteCompleted={localStorage.getItem('uniben_cbt_rewrite_completed') === 'true'}
             />
           )}
 
@@ -313,8 +321,7 @@ const App: React.FC = () => {
               score={quizAttempt.score}
               onWhatsAppSubmit={() => handleWhatsAppSubmission(quizAttempt)}
               onRestart={() => {
-                localStorage.removeItem('uniben_cbt_completed');
-                localStorage.removeItem('uniben_cbt_retake_paid');
+                localStorage.removeItem('uniben_student_data');
                 window.location.reload();
               }}
             />
