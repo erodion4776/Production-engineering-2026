@@ -247,6 +247,7 @@ const App: React.FC = () => {
               previousScore={parseInt(localStorage.getItem('uniben_cbt_score') || '0', 10)} 
               onRetake={handleRetakePayment} 
               onReverify={() => setStage(AppStage.REGISTRATION)}
+              isRewriteCompleted={localStorage.getItem('uniben_cbt_rewrite_completed') === 'true'}
             />
           )}
           
