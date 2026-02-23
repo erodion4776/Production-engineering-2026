@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ShieldAlert, LogOut, RefreshCcw, CreditCard, Award } from 'lucide-react';
+import { ShieldAlert, LogOut, RefreshCcw, CreditCard, Award, ShieldCheck } from 'lucide-react';
 
 interface Props {
   previousScore: number;
