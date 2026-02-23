@@ -7,9 +7,10 @@ import { isStudentWhitelisted } from '../constants/whitelist';
 interface Props {
   onComplete: (data: StudentData) => void;
   isCompleted?: boolean;
+  isRewriteCompleted?: boolean;
 }
 
-const RegistrationForm: React.FC<Props> = ({ onComplete, isCompleted = false }) => {
+const RegistrationForm: React.FC<Props> = ({ onComplete, isCompleted = false, isRewriteCompleted = false }) => {
   const [formData, setFormData] = useState<StudentData>({
     name: '',
     matNo: '',
@@ -150,7 +151,7 @@ const RegistrationForm: React.FC<Props> = ({ onComplete, isCompleted = false }) 
           </div>
         </div>
 
-        {isCompleted && isWhitelisted ? (
+        {isCompleted && isWhitelisted && !isRewriteCompleted ? (
           <button
             type="submit"
             className="w-full py-4 rounded-xl font-black text-white transition-all transform active:scale-95 shadow-lg flex flex-col items-center justify-center gap-1 bg-green-600 hover:bg-green-700 shadow-green-200"

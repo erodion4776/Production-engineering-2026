@@ -54,8 +54,10 @@ const App: React.FC = () => {
     const whitelisted = currentStudent ? isStudentWhitelisted(currentStudent.name, currentStudent.matNo) : false;
     setIsWhitelisted(whitelisted);
 
-    if (whitelisted) {
-      // Forced override: ignore completion flag for whitelisted students
+    const rewriteCompleted = localStorage.getItem('uniben_cbt_rewrite_completed') === 'true';
+
+    if (whitelisted && !rewriteCompleted) {
+      // Forced override: ignore completion flag for whitelisted students who haven't rewritten yet
       const storedModuleId = localStorage.getItem('uniben_assigned_module');
       const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
       setAssignedModuleId(moduleId);
@@ -93,8 +95,9 @@ const App: React.FC = () => {
     
     const isCompleted = localStorage.getItem('uniben_cbt_completed') === 'true';
     const retakePaid = localStorage.getItem('uniben_cbt_retake_paid') === 'true';
+    const rewriteCompleted = localStorage.getItem('uniben_cbt_rewrite_completed') === 'true';
 
-    if (whitelisted) {
+    if (whitelisted && !rewriteCompleted) {
       // Forced override for whitelisted students: skip directly to quiz
       const storedModuleId = localStorage.getItem('uniben_assigned_module');
       const moduleId = storedModuleId ? parseInt(storedModuleId, 10) : (Math.floor(Math.random() * 10) + 1);
@@ -139,6 +142,10 @@ const App: React.FC = () => {
   const handleQuizFinish = (score: number, answers: Record<number, number>, timeUsedSeconds: number) => {
     localStorage.setItem('uniben_cbt_completed', 'true');
     localStorage.setItem('uniben_cbt_score', score.toString());
+    
+    if (isWhitelisted) {
+      localStorage.setItem('uniben_cbt_rewrite_completed', 'true');
+    }
     
     const attempt: QuizAttempt = { 
       score, 
@@ -247,6 +254,7 @@ const App: React.FC = () => {
             <RegistrationForm 
               onComplete={handleRegistration} 
               isCompleted={localStorage.getItem('uniben_cbt_completed') === 'true'}
+              isRewriteCompleted={localStorage.getItem('uniben_cbt_rewrite_completed') === 'true'}
             />
           )}
 
